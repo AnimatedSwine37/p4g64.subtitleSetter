@@ -1,0 +1,25 @@
+{
+  "ModId": "p4g64.subtitleSetter",
+  "ModName": "Subtitle Setter",
+  "ModAuthor": "AnimatedSwine37",
+  "ModVersion": "1.0.0",
+  "ModDescription": "Makes it so you can change the subtitles of the anime movies",
+  "ModDll": "p4g64.subtitleSetter.dll",
+  "ModIcon": "Preview.png",
+  "ModR2RManagedDll32": "x86/p4g64.subtitleSetter.dll",
+  "ModR2RManagedDll64": "x64/p4g64.subtitleSetter.dll",
+  "ModNativeDll32": "",
+  "ModNativeDll64": "",
+  "IsLibrary": true,
+  "ReleaseMetadataFileName": "p4g64.subtitleSetter.ReleaseMetadata.json",
+  "PluginData": {},
+  "IsUniversalMod": false,
+  "ModDependencies": [
+    "reloaded.sharedlib.hooks",
+    "Reloaded.Memory.SigScan.ReloadedII",
+    "p4g64.lib"
+  ],
+  "OptionalDependencies": [],
+  "SupportedAppId": ["p4g.exe"],
+  "ProjectUrl": ""
+}
