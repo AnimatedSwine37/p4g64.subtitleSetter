@@ -2,14 +2,11 @@
 using Reloaded.Mod.Interfaces;
 using p4g64.subtitleSetter.Template;
 using p4g64.subtitleSetter.Configuration;
-using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using p4g64.lib.interfaces;
 using p4g64.lib.interfaces.Meta;
-using Reloaded.Hooks.Definitions;
 using Reloaded.Mod.Interfaces.Internal;
-using SubtitlesParser.Classes;
 using SubtitlesParser.Classes.Parsers;
 using static p4g64.subtitleSetter.Utils;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
@@ -54,7 +51,7 @@ public class Mod : ModBase // <= Do not Remove.
 
     private IP4GLib _p4gLib;
     private SubtitleHook _subtitleHook;
-    
+
     private static Dictionary<string, Language> _languageCodeToId = new()
     {
         ["jp"] = Language.Japanese,
@@ -67,6 +64,8 @@ public class Mod : ModBase // <= Do not Remove.
         ["de"] = Language.German,
         ["es"] = Language.Spanish,
     };
+
+    private static Dictionary<Language, Encoding> _languageEncodings = new();
 
     public Mod(ModContext context)
     {
@@ -95,8 +94,26 @@ public class Mod : ModBase // <= Do not Remove.
             return;
         }
 
+        SetupEncodings();
+
         _subtitleHook = new SubtitleHook(_hooks, _p4gLib);
         _modLoader.ModLoaded += ModLoaded;
+    }
+
+    private void SetupEncodings()
+    {
+        var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
+        AtlusEncoding.SetCharsetDirectory(Path.Combine(modDir, "Charsets"));
+
+        _languageEncodings.Add(Language.Japanese, AtlusEncoding.Create("P4G_JP"));
+        _languageEncodings.Add(Language.English, AtlusEncoding.Create("P4G_EFIGS"));
+        _languageEncodings.Add(Language.French, AtlusEncoding.Create("P4G_EFIGS"));
+        _languageEncodings.Add(Language.Italian, AtlusEncoding.Create("P4G_EFIGS"));
+        _languageEncodings.Add(Language.German, AtlusEncoding.Create("P4G_EFIGS"));
+        _languageEncodings.Add(Language.Spanish, AtlusEncoding.Create("P4G_EFIGS"));
+        _languageEncodings.Add(Language.Korean, AtlusEncoding.Create("P4G_Korean"));
+        _languageEncodings.Add(Language.SimplifiedChinese, AtlusEncoding.Create("P4G_CHS"));
+        _languageEncodings.Add(Language.TraditionalChinese, AtlusEncoding.Create("P4G_CHT"));
     }
 
     private void ModLoaded(IModV1 mod, IModConfigV1 modConfig)
@@ -111,7 +128,8 @@ public class Mod : ModBase // <= Do not Remove.
             }
             else
             {
-                LogWarn($"No subtitles found for mod {modConfig.ModId}. Expected folder '{subtitlesDir}' was not found.");
+                LogWarn(
+                    $"No subtitles found for mod {modConfig.ModId}. Expected folder '{subtitlesDir}' was not found.");
             }
         }
     }
@@ -131,17 +149,24 @@ public class Mod : ModBase // <= Do not Remove.
                 continue;
             }
 
+            var encoding = _languageEncodings[language];
+            if (File.Exists(Path.Combine(dir, "Charset.tsv")))
+            {
+                Log($"Using custom charset for subtitles in directory '{dir}'");
+                encoding = new AtlusEncoding("CustomSubtitleEncoding", Path.Combine(dir, "Charset.tsv"));
+            }
+
             foreach (var file in Directory.GetFiles(dir, "*.srt", SearchOption.AllDirectories))
             {
-                LoadSubtitleFile(file, language);
+                LoadSubtitleFile(file, language, encoding);
             }
         }
     }
 
-    private void LoadSubtitleFile(string filePath, Language language)
+    private void LoadSubtitleFile(string filePath, Language language, Encoding subtitleEncoding)
     {
         var fileName = Path.GetFileName(filePath);
-        var id = 0;
+        int id;
         var nameIdMatch = Regex.Match(fileName, @"P4CT(\d{3})\.srt");
         if (nameIdMatch.Success)
         {
@@ -164,14 +189,14 @@ public class Mod : ModBase // <= Do not Remove.
 
         var parser = new SrtParser();
         using var fileStream = File.OpenRead(filePath);
-        var items = parser.ParseStream(fileStream, Encoding.UTF8);
+        var items = parser.ParseStream(fileStream, Encoding.Default);
         if (items == null)
         {
             LogError($"Failed to parse Subtitle file {filePath}, ignoring it.");
             return;
         }
 
-        _subtitleHook.RegisterSubtitles(id, language, new Subtitles(items));
+        _subtitleHook.RegisterSubtitles(id, language, new Subtitles(items, subtitleEncoding));
         Log($"Added subtitles for movie {id} in {language} from {fileName}");
     }
 
